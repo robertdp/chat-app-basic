@@ -1,4 +1,4 @@
-module Control.Socket.Server
+module Socket.Server
   ( Socket
   , Handler
   , onDisconnect
@@ -12,7 +12,6 @@ import Prelude
 
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
-import Control.Socket (class ClientEvent, class ServerEvent)
 import Data.Either (Either(..))
 import Data.Symbol (SProxy(..), reflectSymbol)
 import Effect (Effect)
@@ -20,6 +19,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
 import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn3)
 import Foreign.Generic (decodeJSON, encodeJSON)
+import Socket.Types (class ClientEvent, class ServerEvent)
 
 
 -- | The Socket instance for the current connection.
@@ -42,13 +42,13 @@ foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
 onDisconnect :: Handler Unit -> Handler Unit
 onDisconnect (Handler handler) = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _on socket "disconnect" $ mkEffectFn1 $ runReaderT handler
+  liftEffect $ runEffectFn3 _on socket "disconnect" $ mkEffectFn1 \_ -> runReaderT handler socket
 
 -- | Logic to run when the client disconnects.
 onReconnect :: Handler Unit -> Handler Unit
 onReconnect (Handler handler) = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _on socket "reconnect" $ mkEffectFn1 $ runReaderT handler
+  liftEffect $ runEffectFn3 _on socket "reconnect" $ mkEffectFn1 \_ -> runReaderT handler socket
 
 foreign import _emit :: EffectFn3 Socket String String Unit
 

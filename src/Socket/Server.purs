@@ -15,7 +15,6 @@ import Prelude
 
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
-import Control.Socket (class ClientEvent, class ServerEvent)
 import Data.Either (Either(..))
 import Data.Symbol (SProxy(..), reflectSymbol)
 import Effect (Effect)
@@ -24,6 +23,7 @@ import Effect.Class.Console as Console
 import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn1, runEffectFn3)
 import Foreign.Generic (decodeJSON, encodeJSON)
 import Node.HTTP as HTTP
+import Socket.Types (class ClientEvent, class ServerEvent)
 
 
 -- | The underlying socket.io Server instance.

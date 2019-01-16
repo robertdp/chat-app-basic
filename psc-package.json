@@ -6,6 +6,7 @@
     "console",
     "effect",
     "foreign-generic",
+    "refs",
     "node-http",
     "prelude",
     "psci-support"

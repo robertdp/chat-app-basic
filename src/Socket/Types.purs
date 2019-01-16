@@ -1,4 +1,4 @@
-module Control.Socket where
+module Socket.Types where
 
 import Data.Symbol (class IsSymbol)
 import Foreign.Class (class Decode, class Encode)
