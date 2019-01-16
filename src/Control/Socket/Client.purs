@@ -1,13 +1,11 @@
 module Control.Socket.Server
-  -- ( Server
-  -- , Socket
-  -- , upgradeServer
-  -- , onConnection
-  -- , onDisconnect
-  -- , on
-  -- , emit
-  -- , broadcast
-  -- )
+  ( Socket
+  , Handler
+  , onDisconnect
+  , onReconnect
+  , send
+  , receive
+  )
   where
 
 import Prelude
