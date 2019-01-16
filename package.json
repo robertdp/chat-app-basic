@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "parcel-bundler": "^1.11.0",
+    "psc-package": "^3.0.1",
+    "pscid": "^2.6.0",
+    "pulp": "^12.3.1",
+    "purescript": "^0.12.1",
+    "purescript-psa": "^0.7.3"
+  },
+  "dependencies": {
+    "socket.io": "^2.2.0"
+  },
+  "scripts": {
+    "postinstall": "rm -Rf .psc-package && $(yarn bin)/psc-package install && yarn build",
+    "clean": "rm -Rf .pulp-cache dist output",
+    "pscid:build": "$(yarn bin)/pulp build",
+    "build": "yarn clean && $(yarn bin)/pulp build",
+    "serve": "$(yarn bin)/pulp --watch build & $(yarn bin)/parcel index.html --open",
+    "id": "$(yarn bin)/pscid",
+    "test": "$(yarn bin)/pulp test"
+  }
+}
