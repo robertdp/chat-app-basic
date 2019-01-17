@@ -6,9 +6,11 @@
     "console",
     "effect",
     "foreign-generic",
-    "refs",
+    "js-date",
     "node-http",
     "prelude",
-    "psci-support"
+    "psci-support",
+    "react-basic",
+    "refs"
   ]
 }

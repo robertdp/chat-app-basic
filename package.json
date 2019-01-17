@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "nodemon": "^1.18.9",
     "parcel-bundler": "^1.11.0",
     "psc-package": "^3.0.1",
     "pscid": "^2.6.0",
@@ -8,6 +9,9 @@
     "purescript-psa": "^0.7.3"
   },
   "dependencies": {
+    "antd": "^3.12.3",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "socket.io": "^2.2.0"
   },
   "scripts": {
@@ -15,7 +19,7 @@
     "clean": "rm -Rf .pulp-cache dist output",
     "pscid:build": "$(yarn bin)/pulp build",
     "build": "yarn clean && $(yarn bin)/pulp build",
-    "serve": "$(yarn bin)/pulp --watch build & $(yarn bin)/parcel index.html --open",
+    "serve": "yarn build && ( $(yarn bin)/pulp --watch build & $(yarn bin)/nodemon server.js & $(yarn bin)/parcel index.html --open )",
     "id": "$(yarn bin)/pscid",
     "test": "$(yarn bin)/pulp test"
   }

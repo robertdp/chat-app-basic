@@ -1,6 +1,8 @@
-exports._upgradeServer = function(server) {
-  var io = require('socket.io');
-  return io(server);
+exports.createServer = function(port) {
+  return function() {
+    var io = require('socket.io');
+    return io(port, { parser: null });
+  };
 };
 
 exports._on = function(subject, eventName, handler) {

@@ -1,6 +1,8 @@
-module Socket.Server
+module Socket.Client
   ( Socket
   , Handler
+  , createSocket
+  , handle
   , onDisconnect
   , onReconnect
   , send
@@ -19,7 +21,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
 import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn3)
 import Foreign.Generic (decodeJSON, encodeJSON)
-import Socket.Types (class ClientEvent, class ServerEvent)
+import Socket.Types (class ClientMessage, class ServerMessage)
 
 
 -- | The Socket instance for the current connection.
@@ -34,9 +36,12 @@ derive newtype instance bindHandler :: Bind Handler
 derive newtype instance monadHandler :: Monad Handler
 derive newtype instance monadEffectHandler :: MonadEffect Handler
 
-foreign import createSocket :: Effect Socket
+foreign import createSocket :: String -> Effect Socket
 
 foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
+
+handle :: forall a. Socket -> Handler a -> Effect a
+handle socket (Handler handler) = runReaderT handler socket
 
 -- | Logic to run when the client disconnects.
 onDisconnect :: Handler Unit -> Handler Unit
@@ -52,24 +57,25 @@ onReconnect (Handler handler) = Handler do
 
 foreign import _emit :: EffectFn3 Socket String String Unit
 
--- | Sends a message to the server in the pre-specified event channel.
-send :: forall event msg. ClientEvent event msg => msg -> Handler Unit
+-- | Sends a message to the server in the pre-specified channel.
+send :: forall channel msg. ClientMessage channel msg => msg -> Handler Unit
 send a = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _emit socket event (encodeJSON a)
+  liftEffect $ runEffectFn3 _emit socket channel (encodeJSON a)
   where
-    event = reflectSymbol (SProxy :: SProxy event)
+    channel = reflectSymbol (SProxy :: SProxy channel)
 
 -- | Listens for server messages in the pre-specified channel.
-receive :: forall event msg. ServerEvent event msg => (msg -> Handler Unit) -> Handler Unit
-receive f = Handler do
+receive :: forall channel msg. ServerMessage channel msg => (msg -> Handler Unit) -> Handler Unit
+receive handler = Handler do
+  let channel = reflectSymbol (SProxy :: SProxy channel)
   socket <- ask
-  liftEffect $ runEffectFn3 _on socket event $ mkEffectFn1 handler
+  liftEffect $ runEffectFn3 _on socket channel $ mkEffectFn1 $ runHandler socket
   where
-    event = reflectSymbol (SProxy :: SProxy event)
-    handler msg =
+    runHandler :: Socket -> String -> Effect Unit
+    runHandler socket msg =
       decodeJSON msg
         # runExcept
         # case _ of
-          Left _ -> Console.log $ "Invalid message: " <> msg
-          Right message -> handler message
+          Left errors -> Console.log $ "Invalid message: " <> msg
+          Right value -> handle socket $ handler value

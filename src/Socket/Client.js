@@ -1,6 +1,8 @@
-exports.createSocket = function() {
+exports.createSocket = function(url) {
   var io = require('socket.io-client');
-  return io();
+  return function() {
+    return io(url);
+  };
 };
 
 exports._on = function(socket, event, handler) {

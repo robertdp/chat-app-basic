@@ -1,8 +1,8 @@
-module Control.Socket.Server
+module Control.Server
   ( Server
   , Socket
   , Handler
-  , upgradeServer
+  , createServer
   , onConnection
   , onDisconnect
   , send
@@ -23,7 +23,8 @@ import Effect.Class.Console as Console
 import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn1, runEffectFn3)
 import Foreign.Generic (decodeJSON, encodeJSON)
 import Node.HTTP as HTTP
-import Socket.Types (class ClientEvent, class ServerEvent)
+import Socket.Types (class ClientMessage, class ServerMessage)
+import Unsafe.Coerce (unsafeCoerce)
 
 
 -- | The underlying socket.io Server instance.
@@ -32,11 +33,8 @@ foreign import data Server :: Type
 -- | The Socket instance for the current connection.
 foreign import data Socket :: Type
 
-foreign import _upgradeServer :: EffectFn1 HTTP.Server Server
-
--- | Add the ability for a HTTP server to upgrade a regular connection to a socket.io connection.
-upgradeServer :: HTTP.Server -> Effect Server
-upgradeServer = runEffectFn1 _upgradeServer
+-- | Create a new socket.io server.
+foreign import createServer :: Int -> Effect Server
 
 -- | This is our server-side socket handling context.
 newtype Handler a = Handler (ReaderT Socket Effect a)
@@ -46,6 +44,10 @@ derive newtype instance applicativeHandler :: Applicative Handler
 derive newtype instance bindHandler :: Bind Handler
 derive newtype instance monadHandler :: Monad Handler
 derive newtype instance monadEffectHandler :: MonadEffect Handler
+
+
+handle :: forall a. Socket -> Handler a -> Effect a
+handle socket (Handler handler) = runReaderT handler socket
 
 foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
 
@@ -61,34 +63,35 @@ onDisconnect (Handler handler) = Handler do
 
 foreign import _emit :: EffectFn3 Socket String String Unit
 
--- | Sends a message to the client in the pre-specified event channel.
-send :: forall event msg. ServerEvent event msg => msg -> Handler Unit
+-- | Sends a message to the client in the pre-specified channel.
+send :: forall channel msg. ServerMessage channel msg => msg -> Handler Unit
 send a = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _emit socket event (encodeJSON a)
+  liftEffect $ runEffectFn3 _emit socket channel (encodeJSON a)
   where
-    event = reflectSymbol (SProxy :: SProxy event)
+    channel = reflectSymbol (SProxy :: SProxy channel)
 
 foreign import _broadcast :: EffectFn3 Socket String String Unit
 
 -- | Sends a message to all clients except the current one.
-broadcast :: forall event msg. ServerEvent event msg => msg -> Handler Unit
+broadcast :: forall channel msg. ServerMessage channel msg => msg -> Handler Unit
 broadcast a = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _broadcast socket event (encodeJSON a)
+  liftEffect $ runEffectFn3 _broadcast socket channel (encodeJSON a)
   where
-    event = reflectSymbol (SProxy :: SProxy event)
+    channel = reflectSymbol (SProxy :: SProxy channel)
 
 -- | Listens for client messages in the pre-specified channel.
-receive :: forall event msg. ClientEvent event msg => (msg -> Handler Unit) -> Handler Unit
-receive f = Handler do
+receive :: forall channel msg. ClientMessage channel msg => (msg -> Handler Unit) -> Handler Unit
+receive handler = Handler do
+  let channel = reflectSymbol (SProxy :: SProxy channel)
   socket <- ask
-  liftEffect $ runEffectFn3 _on socket event $ mkEffectFn1 handler
+  liftEffect $ runEffectFn3 _on socket channel $ mkEffectFn1 $ runHandler socket
   where
-    event = reflectSymbol (SProxy :: SProxy event)
-    handler msg = 
-      decodeJSON msg 
+    runHandler :: Socket -> String -> Effect Unit
+    runHandler socket msg =
+      decodeJSON msg
         # runExcept
         # case _ of
-          Left _ -> Console.log $ "Invalid message: " <> msg
-          Right message -> handler message
+          Left errors -> Console.log $ "Invalid message: " <> msg
+          Right value -> handle socket $ handler value
