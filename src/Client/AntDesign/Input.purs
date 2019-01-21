@@ -1,4 +1,4 @@
-module Client.Components.Input where
+module Client.AntDesign.Input where
 
 import React.Basic (JSX, ReactComponent, element)
 

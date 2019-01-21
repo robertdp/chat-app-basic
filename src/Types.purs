@@ -1,27 +1,42 @@
 module Types where
 
 import Prelude
+
 import Control.Monad.Error.Class (throwError)
-import Data.JSDate (JSDate, fromTime, getTime)
-import Data.Maybe (maybe)
+import Data.DateTime as DateTime
+import Data.Enum (toEnum)
+import Data.JSDate as JSDate
+import Data.Maybe (fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.NonEmpty (NonEmptyString, fromString, toString)
 import Foreign (F, Foreign, ForeignError(..))
 import Foreign.Class (class Decode, class Encode, decode, encode)
+import Partial.Unsafe (unsafePartial)
 
 
-newtype Time = Time JSDate
+newtype Time = Time DateTime.DateTime
+
 derive instance eqTime :: Eq Time
 derive instance ordTime :: Ord Time
 derive newtype instance showTime :: Show Time
 derive instance newtypeTime :: Newtype Time _
 
 instance encodeTime :: Encode Time where
-  encode = encode <<< getTime <<< unwrap
+  encode = encode <<< JSDate.toString <<< JSDate.fromDateTime <<< unwrap
 
 instance decodeTime :: Decode Time where
-  decode = decode >>> map (fromTime >>> wrap)
+  decode = decode >>> map (JSDate.fromTime >>> JSDate.toDateTime >>> maybe epoch identity >>> wrap)
 
+epoch :: DateTime.DateTime
+epoch = unsafePartial $ fromJust ado
+  year <- toEnum 1970
+  month <- toEnum 1
+  day <- toEnum 1
+  hour <- toEnum 0
+  minute <- toEnum 0
+  second <- toEnum 0
+  millisecond <- toEnum 0
+  in DateTime.DateTime (DateTime.canonicalDate year month day) (DateTime.Time hour minute second millisecond)
 
 newtype User = User NonEmptyString
 
@@ -35,7 +50,6 @@ instance encodeUser :: Encode User where
 instance decodeUser :: Decode User where
   decode = decodeNonEmptyString
 
-
 newtype Room = Room NonEmptyString
 
 derive instance eqRoom :: Eq Room
@@ -48,7 +62,6 @@ instance encodeRoom :: Encode Room where
 instance decodeRoom :: Decode Room where
   decode = decodeNonEmptyString
 
-
 newtype MessageText = MessageText NonEmptyString
 
 derive instance newtypeMessageText :: Newtype MessageText _
@@ -58,7 +71,6 @@ instance encodeMessageText :: Encode MessageText where
 
 instance decodeMessageText :: Decode MessageText where
   decode = decodeNonEmptyString
-
 
 encodeNonEmptyString :: forall t. Newtype t NonEmptyString => t -> Foreign
 encodeNonEmptyString = encode <<< toString <<< unwrap

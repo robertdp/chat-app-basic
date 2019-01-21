@@ -1,7 +1,7 @@
 exports.createServer = function(port) {
   return function() {
     var io = require('socket.io');
-    return io(port, { parser: null });
+    return io(port);
   };
 };
 

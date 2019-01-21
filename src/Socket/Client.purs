@@ -2,7 +2,7 @@ module Socket.Client
   ( Socket
   , Handler
   , createSocket
-  , handle
+  , runClient
   , onDisconnect
   , onReconnect
   , send
@@ -40,8 +40,8 @@ foreign import createSocket :: String -> Effect Socket
 
 foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
 
-handle :: forall a. Socket -> Handler a -> Effect a
-handle socket (Handler handler) = runReaderT handler socket
+runClient :: forall a. Socket -> Handler a -> Effect a
+runClient socket (Handler handler) = runReaderT handler socket
 
 -- | Logic to run when the client disconnects.
 onDisconnect :: Handler Unit -> Handler Unit
@@ -78,4 +78,4 @@ receive handler = Handler do
         # runExcept
         # case _ of
           Left errors -> Console.log $ "Invalid message: " <> msg
-          Right value -> handle socket $ handler value
+          Right value -> runClient socket $ handler value

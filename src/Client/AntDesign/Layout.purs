@@ -1,4 +1,4 @@
-module Client.Components.Layout where
+module Client.AntDesign.Layout where
 
 import Prelude
 

@@ -1,4 +1,4 @@
-module Client.Components.Modal where
+module Client.AntDesign.Modal where
 
 import Prelude
 import React.Basic (JSX, ReactComponent, element)

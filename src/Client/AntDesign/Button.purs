@@ -1,4 +1,4 @@
-module Client.Components.Button where
+module Client.AntDesign.Button where
 
 import Prelude
 import React.Basic (JSX, ReactComponent, element)

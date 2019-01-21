@@ -1,4 +1,4 @@
-module Control.Server
+module Socket.Server
   ( Server
   , Socket
   , Handler
@@ -20,11 +20,9 @@ import Data.Symbol (SProxy(..), reflectSymbol)
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
-import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn1, runEffectFn3)
+import Effect.Uncurried (EffectFn1, EffectFn3, mkEffectFn1, runEffectFn3)
 import Foreign.Generic (decodeJSON, encodeJSON)
-import Node.HTTP as HTTP
 import Socket.Types (class ClientMessage, class ServerMessage)
-import Unsafe.Coerce (unsafeCoerce)
 
 
 -- | The underlying socket.io Server instance.
@@ -45,9 +43,8 @@ derive newtype instance bindHandler :: Bind Handler
 derive newtype instance monadHandler :: Monad Handler
 derive newtype instance monadEffectHandler :: MonadEffect Handler
 
-
-handle :: forall a. Socket -> Handler a -> Effect a
-handle socket (Handler handler) = runReaderT handler socket
+runServer :: forall a. Socket -> Handler a -> Effect a
+runServer socket (Handler handler) = runReaderT handler socket
 
 foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
 
@@ -94,4 +91,4 @@ receive handler = Handler do
         # runExcept
         # case _ of
           Left errors -> Console.log $ "Invalid message: " <> msg
-          Right value -> handle socket $ handler value
+          Right value -> runServer socket $ handler value

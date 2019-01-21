@@ -1,14 +1,16 @@
 module Server.Messages where
 
+import Types
+
 import Data.Generic.Rep (class Generic)
 import Foreign.Class (class Decode, class Encode)
 import Foreign.Generic (defaultOptions, genericDecode, genericEncode)
 import Socket.Types (class ServerMessage)
-import Types
+
 
 data Connect
   = UserAlreadyExists User
-  | Connected User
+  | Connected User (Array Room)
 
 instance serverMessageConnect :: ServerMessage "chat.connect" Connect
 derive instance genericConnect :: Generic Connect _
@@ -16,7 +18,7 @@ instance decodeConnect :: Decode Connect where decode = genericDecode defaultOpt
 instance encodeConnect :: Encode Connect where encode = genericEncode defaultOptions
 
 data Chat
-  = RoomCreated Room
+  = RoomCreated User Room Time
   | UserJoined User Time
   | UserLeft User Time
   | Message User Room MessageText Time

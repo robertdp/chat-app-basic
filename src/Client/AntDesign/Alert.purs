@@ -1,4 +1,4 @@
-module Client.Components.Alert where
+module Client.AntDesign.Alert where
 
 import React.Basic (JSX, ReactComponent, element)
 
