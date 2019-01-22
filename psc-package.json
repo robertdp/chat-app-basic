@@ -1,6 +1,6 @@
 {
   "name": "chat-app-basic",
-  "set": "psc-0.12.1-20190107",
+  "set": "psc-0.12.2-20190119",
   "source": "https://github.com/purescript/package-sets.git",
   "depends": [
     "console",

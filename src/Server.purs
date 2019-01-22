@@ -2,28 +2,29 @@ module Server where
 
 import Prelude
 
-import Client.Messages (Connect(..))
 import Client.Messages as Client
-import Data.Maybe (Maybe(..), fromJust, isNothing)
+import Data.JSDate as JSDate
+import Data.Maybe (Maybe(..), fromJust, isJust, maybe)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.String.NonEmpty (fromString)
 import Data.Traversable (for, for_)
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Now as Now
+import Effect.Class.Console as Console
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Partial.Unsafe (unsafePartial)
 import Server.Messages (Chat(..), Connect(..))
-import Socket.Server (Handler, broadcast, createServer, onConnection, onDisconnect, receive, send)
+import Socket.Server (Handler)
+import Socket.Server as Socket
 import Types (Room(..), Time(..), User)
 
 main :: Effect Unit
 main = do
-  server <- createServer 3001
+  server <- Socket.createServer 3001
   state <- initialState
-  onConnection server $ handler state
+  Socket.onConnection server $ handler state
 
 type State =
   { users :: Ref (Set User)
@@ -43,34 +44,40 @@ handler :: State -> Handler Unit
 handler { users, rooms } = do
   userRef <- liftEffect $ Ref.new Nothing
 
-  receive case _ of
+  let roomExists room = Set.member room <$> (liftEffect $ Ref.read rooms)
+      userConnected = isJust <$> (liftEffect $ Ref.read userRef)
+      withUser f = (liftEffect $ Ref.read userRef) >>= maybe (pure unit) f
+
+  Socket.listen case _ of
     Client.Connect user -> do
-      let usernameTaken = liftEffect $ Set.member user <$> Ref.read users
-      ifM usernameTaken (send $ UserAlreadyExists user) do
-        liftEffect $ Ref.modify_ (Set.insert user) users
-        liftEffect $ Ref.write (Just user) userRef
-        time <- getCurrentTime
-        rooms' <- liftEffect $ Ref.read rooms
-        send $ Connected user $ Set.toUnfoldable rooms'
-        broadcast $ UserJoined user time
+      let usernameTaken = Set.member user <$> (liftEffect $ Ref.read users)
+      unlessM userConnected do
+        ifM usernameTaken (Socket.send $ UserAlreadyExists user) do
+          liftEffect $ Ref.modify_ (Set.insert user) users
+          liftEffect $ Ref.write (Just user) userRef
+          time <- getCurrentTime
+          rooms' <- liftEffect $ Ref.read rooms
+          Socket.send $ Connected user $ Set.toUnfoldable rooms'
+          Socket.broadcast $ UserJoined user time
 
-  receive \msg -> do
-    user' <- liftEffect $ Ref.read userRef
-    for_ user' \user -> case msg of
+  Socket.listen \msg -> do
+    withUser \user -> case msg of
       Client.CreateRoom room -> do
-        liftEffect $ Ref.modify_ (Set.insert room) rooms
-        time <- getCurrentTime
-        broadcast $ RoomCreated user room time
+        unlessM (roomExists room) do
+          liftEffect $ Ref.modify_ (Set.insert room) rooms
+          time <- getCurrentTime
+          Socket.broadcast $ RoomCreated user room time
       Client.SendMessage room text -> do
-        time <- getCurrentTime
-        broadcast $ Message user room text time
+        unlessM (roomExists room) do
+          time <- getCurrentTime
+          Socket.broadcast $ Message user room text time
 
-  onDisconnect do
-    user' <- liftEffect $ Ref.read userRef
-    for_ user' \user -> do
+  Socket.onDisconnect do
+    withUser \user -> do
       liftEffect $ Ref.write Nothing userRef
+      liftEffect $ Ref.modify_ (Set.delete user) users
       time <- getCurrentTime
-      broadcast $ UserLeft user time
+      Socket.broadcast $ UserLeft user time
 
 getCurrentTime :: forall m. MonadEffect m => m Time
-getCurrentTime = liftEffect $ Time <$> Now.nowDateTime
+getCurrentTime = liftEffect $ Time <$> JSDate.now

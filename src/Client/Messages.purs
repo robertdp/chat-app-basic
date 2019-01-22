@@ -6,6 +6,7 @@ import Foreign.Generic (defaultOptions, genericDecode, genericEncode)
 import Socket.Types (class ClientMessage)
 import Types
 
+
 data Connect
   = Connect User
 

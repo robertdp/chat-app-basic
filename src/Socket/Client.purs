@@ -2,11 +2,11 @@ module Socket.Client
   ( Socket
   , Handler
   , createSocket
-  , runClient
+  , run
   , onDisconnect
   , onReconnect
   , send
-  , receive
+  , listen
   )
   where
 
@@ -40,8 +40,8 @@ foreign import createSocket :: String -> Effect Socket
 
 foreign import _on :: forall a b. EffectFn3 a String (EffectFn1 b Unit) Unit
 
-runClient :: forall a. Socket -> Handler a -> Effect a
-runClient socket (Handler handler) = runReaderT handler socket
+run :: forall a. Socket -> Handler a -> Effect a
+run socket (Handler handler) = runReaderT handler socket
 
 -- | Logic to run when the client disconnects.
 onDisconnect :: Handler Unit -> Handler Unit
@@ -66,8 +66,8 @@ send a = Handler do
     channel = reflectSymbol (SProxy :: SProxy channel)
 
 -- | Listens for server messages in the pre-specified channel.
-receive :: forall channel msg. ServerMessage channel msg => (msg -> Handler Unit) -> Handler Unit
-receive handler = Handler do
+listen :: forall channel msg. ServerMessage channel msg => (msg -> Handler Unit) -> Handler Unit
+listen handler = Handler do
   let channel = reflectSymbol (SProxy :: SProxy channel)
   socket <- ask
   liftEffect $ runEffectFn3 _on socket channel $ mkEffectFn1 $ runHandler socket
@@ -78,4 +78,4 @@ receive handler = Handler do
         # runExcept
         # case _ of
           Left errors -> Console.log $ "Invalid message: " <> msg
-          Right value -> runClient socket $ handler value
+          Right value -> run socket $ handler value

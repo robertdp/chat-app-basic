@@ -7,7 +7,7 @@ module Socket.Server
   , onDisconnect
   , send
   , broadcast
-  , receive
+  , listen
   )
   where
 
@@ -56,7 +56,7 @@ onConnection server (Handler handler) = runEffectFn3 _on server "connection" $ m
 onDisconnect :: Handler Unit -> Handler Unit
 onDisconnect (Handler handler) = Handler do
   socket <- ask
-  liftEffect $ runEffectFn3 _on socket "disconnect" $ mkEffectFn1 $ runReaderT handler
+  liftEffect $ runEffectFn3 _on socket "disconnect" $ mkEffectFn1 $ \_ -> runReaderT handler socket
 
 foreign import _emit :: EffectFn3 Socket String String Unit
 
@@ -79,8 +79,8 @@ broadcast a = Handler do
     channel = reflectSymbol (SProxy :: SProxy channel)
 
 -- | Listens for client messages in the pre-specified channel.
-receive :: forall channel msg. ClientMessage channel msg => (msg -> Handler Unit) -> Handler Unit
-receive handler = Handler do
+listen :: forall channel msg. ClientMessage channel msg => (msg -> Handler Unit) -> Handler Unit
+listen handler = Handler do
   let channel = reflectSymbol (SProxy :: SProxy channel)
   socket <- ask
   liftEffect $ runEffectFn3 _on socket channel $ mkEffectFn1 $ runHandler socket
