@@ -16,6 +16,8 @@ import Socket.Server (Handler)
 import Socket.Server as Socket
 import Types (Room(..), User, getCurrentTime)
 
+
+-- | Creates a socket.io server and connects the message handlers
 main :: Effect Unit
 main = do
   server <- Socket.createServer 3001
@@ -27,15 +29,18 @@ type State =
   , rooms :: Ref (Set Room)
   }
 
+-- | The server state when it's freshly started.
 initialState :: Effect State
 initialState = ado
   users <- Ref.new Set.empty
   rooms <- Ref.new $ Set.singleton $ defaultRoom
   in { users, rooms }
 
+-- | With at least 1 room be default, we can make convenient assumptions on the client-side
 defaultRoom :: Room
 defaultRoom = Room $ unsafePartial $ fromJust $ fromString "General"
 
+-- | This is the main logic for the server-side message handling
 handler :: State -> Handler Unit
 handler { users, rooms } = do
   userRef <- liftEffect $ Ref.new Nothing

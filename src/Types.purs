@@ -1,5 +1,8 @@
 module Types where
 
+-- | The types in this file represent the meaningful values we want to send
+-- | with messages over the socket.
+
 import Prelude
 
 import Control.Monad.Error.Class (throwError)

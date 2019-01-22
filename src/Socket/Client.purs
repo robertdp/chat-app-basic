@@ -49,7 +49,7 @@ onDisconnect (Handler handler) = Handler do
   socket <- ask
   liftEffect $ runEffectFn3 _on socket "disconnect" $ mkEffectFn1 \_ -> runReaderT handler socket
 
--- | Logic to run when the client disconnects.
+-- | Logic to run when the client reconnects.
 onReconnect :: Handler Unit -> Handler Unit
 onReconnect (Handler handler) = Handler do
   socket <- ask

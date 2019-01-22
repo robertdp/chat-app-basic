@@ -14,6 +14,7 @@ import Web.HTML.HTMLDocument (toNonElementParentNode)
 import Web.HTML.Window as Window
 
 
+-- | Initialise and render the React app
 main :: Effect Unit
 main = do
   document <- Window.document =<< window
