@@ -1,7 +1,6 @@
 module Client.App where
 
-import Prelude
-
+import Prelude hiding (div)
 import Client.AntDesign.Alert as Alert
 import Client.AntDesign.Button as Button
 import Client.AntDesign.Input as Input
@@ -285,7 +284,7 @@ renderMessages currentRoom messages =
     filteredMessages = messages # Array.filter case _ of
       Message _ room _ _ -> room == currentRoom
       _ -> true
-      
+
     formatTime time =
       -- this is fragile, but convenient for this project
       (\time' -> "[" <> time' <> "] ") $ String.take 8 $ JSDate.toTimeString $ unwrap time
