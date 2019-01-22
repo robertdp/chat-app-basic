@@ -11,9 +11,12 @@ import Client.AntDesign.Modal as Modal
 import Client.Messages as Client
 import Data.Array as Array
 import Data.Foldable (for_, traverse_)
+import Data.JSDate as JSDate
 import Data.Maybe (Maybe(..), maybe)
+import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.String as String
 import Data.String.NonEmpty as NonEmptyString
 import Effect (Effect)
 import Effect.Class (liftEffect)
@@ -21,13 +24,13 @@ import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import React.Basic (Component, JSX, ReactComponentInstance, Self, StateUpdate(..), capture, capture_, createComponent, make)
 import React.Basic as React
-import React.Basic.DOM (css, div_, h2, h3, text)
+import React.Basic.DOM (css, div, div_, h2, h3, text)
 import React.Basic.DOM.Events (targetValue)
 import Server.Messages (Chat(..))
 import Server.Messages as Server
 import Socket.Client (Socket)
 import Socket.Client as Socket
-import Types (Room(..), User(..), unwrapToString)
+import Types (MessageText(..), Room(..), User(..), getCurrentTime, unwrapToString)
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -54,6 +57,8 @@ data Action
   | AddMessage Server.Chat
   | SelectRoom Room
   | UpdateNewRoomName String
+  | UpdateNewMessageText String
+  | SendMessage String
 
 component :: Component { socket :: Socket }
 component = createComponent "App"
@@ -128,6 +133,21 @@ app = make component { initialState, didMount, update, render }
     UpdateNewRoomName room, Joined joinedState ->
       let newState = Joined $ joinedState { newRoomName = room }
       in Update newState
+    
+    UpdateNewMessageText messageText, Joined joinedState ->
+      let newState = Joined $ joinedState { newMessageText = messageText }
+      in Update newState
+    
+    SendMessage message, Joined joinedState  ->
+      let maybeMessageText = MessageText <$> NonEmptyString.fromString message
+          newState = Joined $ joinedState { newMessageText = "" }
+          effects messageText self = Socket.run self.props.socket do
+            Socket.send $ Client.SendMessage joinedState.currentRoom messageText
+            liftEffect do
+              time <- getCurrentTime
+              let newMessage = Server.Message joinedState.user joinedState.currentRoom messageText time
+              React.send self $ AddMessage newMessage
+      in maybe NoUpdate (\messageText -> UpdateAndSideEffects newState (effects messageText)) maybeMessageText
 
     _, _ ->
       SideEffects \_ -> do
@@ -203,7 +223,7 @@ chatScreen
   -> JSX
 chatScreen self { currentRoom, rooms, newRoomName, messages, newMessageText } =
   let
-    roomTitle = append "#" $ unwrapToString currentRoom
+    roomTitle = append "# " $ unwrapToString currentRoom
   in
     Layout.layout { style: css { height: "100vh" } }
       [ Layout.sider
@@ -213,7 +233,7 @@ chatScreen self { currentRoom, rooms, newRoomName, messages, newMessageText } =
           , style: css { margin: "1em 1em", width: "auto" }
           , value: newRoomName
           , onChange: capture self targetValue \value ->
-              UpdateNewRoomName $ maybe "" identity value 
+              UpdateNewRoomName $ maybe "" identity value
           , onPressEnter: capture self targetValue \value ->
               CreateRoom $ maybe "" identity value
           }
@@ -234,7 +254,7 @@ chatScreen self { currentRoom, rooms, newRoomName, messages, newMessageText } =
               Menu.item
                 { key: unwrapToString room
                 }
-                [ text $ unwrapToString room ]
+                [ text $ "# " <> unwrapToString room ]
         ]
       , Layout.layout {}
         [ Layout.header {}
@@ -244,7 +264,18 @@ chatScreen self { currentRoom, rooms, newRoomName, messages, newMessageText } =
             }
           ]
         , Layout.content {} $ renderMessages currentRoom messages
-        , Layout.footer {} [ text "footer" ]
+        , Layout.footer {}
+          [ Input.input
+            { "type": "textarea"
+            , placeholder: "Enter your message"
+            , size: "large"
+            , value: newMessageText
+            , onChange: capture self targetValue \value ->
+                UpdateNewMessageText $ maybe "" identity value 
+            , onPressEnter: capture self targetValue \value ->
+                SendMessage $ maybe "" identity value
+            }
+          ]
         ]
       ]
 
@@ -254,14 +285,19 @@ renderMessages currentRoom messages =
     filteredMessages = messages # Array.filter case _ of
       Message _ room _ _ -> room == currentRoom
       _ -> true
+      
+    formatTime time =
+      -- this is fragile, but convenient for this project
+      (\time' -> "[" <> time' <> "] ") $ String.take 8 $ JSDate.toTimeString $ unwrap time
   in
     filteredMessages
       <#> case _ of
         UserJoined user time ->
-          div_ [ text $ "User " <> unwrapToString user <> " has joined" ]
+          div_ [ text $ formatTime time <> unwrapToString user <> " has joined" ]
         UserLeft user time ->
-          div_ [ text $ "User " <> unwrapToString user <> " has left" ]
+          div_ [ text $ formatTime time <> unwrapToString user <> " has left" ]
         RoomCreated user room time ->
-          div_ [ text $ "User " <> unwrapToString user <> " has created the room " <> unwrapToString room ]
+          div_ [ text $ formatTime time <> unwrapToString user <> " has created the room " <> unwrapToString room ]
         Message user room messageText time ->
-          div_ [ text $ unwrapToString user <> " says: " <> unwrapToString messageText ]
+          div_ [ text $ formatTime time <> unwrapToString user <> ": " <> unwrapToString messageText ]
+      <#> \child -> div { style: css { margin: "1em" }, children: [ child ] }

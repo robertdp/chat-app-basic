@@ -1,24 +1,20 @@
 module Server where
 
-import Prelude
-
 import Client.Messages as Client
-import Data.JSDate as JSDate
 import Data.Maybe (Maybe(..), fromJust, isJust, maybe)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.String.NonEmpty (fromString)
-import Data.Traversable (for, for_)
 import Effect (Effect)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Class.Console as Console
+import Effect.Class (liftEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Partial.Unsafe (unsafePartial)
+import Prelude (Unit, apply, bind, discard, ifM, map, not, pure, unit, unlessM, ($), (<$>), (>>=))
 import Server.Messages (Chat(..), Connect(..))
 import Socket.Server (Handler)
 import Socket.Server as Socket
-import Types (Room(..), Time(..), User)
+import Types (Room(..), User, getCurrentTime)
 
 main :: Effect Unit
 main = do
@@ -68,7 +64,7 @@ handler { users, rooms } = do
           time <- getCurrentTime
           Socket.broadcast $ RoomCreated user room time
       Client.SendMessage room text -> do
-        unlessM (roomExists room) do
+        unlessM (not <$> roomExists room) do
           time <- getCurrentTime
           Socket.broadcast $ Message user room text time
 
@@ -78,6 +74,3 @@ handler { users, rooms } = do
       liftEffect $ Ref.modify_ (Set.delete user) users
       time <- getCurrentTime
       Socket.broadcast $ UserLeft user time
-
-getCurrentTime :: forall m. MonadEffect m => m Time
-getCurrentTime = liftEffect $ Time <$> JSDate.now

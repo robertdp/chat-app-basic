@@ -8,6 +8,7 @@ import Data.JSDate as JSDate
 import Data.Maybe (maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.NonEmpty (NonEmptyString, fromString, toString)
+import Effect.Class (class MonadEffect, liftEffect)
 import Foreign (F, Foreign, ForeignError(..))
 import Foreign.Class (class Decode, class Encode, decode, encode)
 
@@ -25,16 +26,8 @@ instance encodeTime :: Encode Time where
 instance decodeTime :: Decode Time where
   decode = decode >>> map (JSDate.fromTime >>> wrap)
 
--- epoch :: DateTime.DateTime
--- epoch = unsafePartial $ fromJust ado
---   year <- toEnum 1970
---   month <- toEnum 1
---   day <- toEnum 1
---   hour <- toEnum 0
---   minute <- toEnum 0
---   second <- toEnum 0
---   millisecond <- toEnum 0
---   in DateTime.DateTime (DateTime.canonicalDate year month day) (DateTime.Time hour minute second millisecond)
+getCurrentTime :: forall m. MonadEffect m => m Time
+getCurrentTime =  Time <$> liftEffect JSDate.now
 
 newtype User = User NonEmptyString
 
